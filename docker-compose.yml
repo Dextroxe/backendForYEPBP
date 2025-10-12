@@ -1,0 +1,127 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: backendForYEPBP-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: docker
+      POSTGRES_PASSWORD: docker
+      POSTGRES_DB: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - backend-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U docker"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: backendForYEPBP-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - backend-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend Application (Production)
+  backend:
+    build:
+      context: .
+      dockerfile: dockerfile
+      target: prod
+    container_name: backendForYEPBP-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 3000
+      SECRET: ${SECRET}
+      PRIVATE: ${PRIVATE}
+      PUBLIC: ${PUBLIC}
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_USER: docker
+      DATABASE_PASSWORD: docker
+      DATABASE_NAME: postgres
+      DATABASE_URL: postgresql://docker:docker@postgres:5432/postgres
+      DATABASE_URL_NON_POOLING: postgresql://docker:docker@postgres:5432/postgres
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_USER: ""
+      REDIS_PASSWORD: ""
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - backend-network
+
+  # Backend Application (Development) - Uncomment to use
+  # backend-dev:
+  #   build:
+  #     context: .
+  #     dockerfile: dockerfile
+  #     target: dev
+  #   container_name: backendForYEPBP-app-dev
+  #   restart: unless-stopped
+  #   ports:
+  #     - "3000:3000"
+  #   environment:
+  #     NODE_ENV: local
+  #     HOST: 0.0.0.0
+  #     PORT: 3000
+  #     SECRET: ${SECRET}
+  #     PRIVATE: ${PRIVATE}
+  #     PUBLIC: ${PUBLIC}
+  #     DATABASE_HOST: postgres
+  #     DATABASE_PORT: 5432
+  #     DATABASE_USER: docker
+  #     DATABASE_PASSWORD: docker
+  #     DATABASE_NAME: postgres
+  #     DATABASE_URL: postgresql://docker:docker@postgres:5432/postgres
+  #     DATABASE_URL_NON_POOLING: postgresql://docker:docker@postgres:5432/postgres
+  #     REDIS_HOST: redis
+  #     REDIS_PORT: 6379
+  #     REDIS_USER: ""
+  #     REDIS_PASSWORD: ""
+  #     REDIS_URL: redis://redis:6379
+  #   volumes:
+  #     - .:/usr/src/app
+  #     - /usr/src/app/node_modules
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #     redis:
+  #       condition: service_healthy
+  #   networks:
+  #     - backend-network
+
+networks:
+  backend-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
