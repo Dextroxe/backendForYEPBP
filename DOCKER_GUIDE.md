@@ -104,7 +104,13 @@ docker-compose exec postgres psql -U docker -d postgres
 
 # Access Redis CLI
 docker-compose exec redis redis-cli
-```
+```\
+
+
+## my thing
+docker-compose exec backend-dev npx prisma migrate dev --name init
+docker-compose exec backend-dev npx prisma generate
+
 
 ## 🔧 Development Mode
 
